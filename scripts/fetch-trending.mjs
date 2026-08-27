@@ -2,8 +2,8 @@ import { Octokit } from "@octokit/rest";
 import fs from "fs/promises";
 import path from "path";
 import {
-  computeGrowth, compareRepos, pushSnapshot,
-  STATE_SIZE, FEED_SIZE
+  computeGrowth, compareRepos, pushSnapshot, mergeState, assertEnoughCandidates,
+  FEED_SIZE
 } from "./growth.mjs";
 
 const octokit = new Octokit({
@@ -159,18 +159,20 @@ async function run() {
     })
     .sort(compareRepos);
 
+  // Si la API fallo, `processed` viene corto: se aborta antes de escribir nada.
+  assertEnoughCandidates(processed.length);
+
   const medidos = processed.filter(r => !r.isEstimated).length;
   console.log(`Candidatos: ${processed.length} | medidos: ${medidos} | estimados: ${processed.length - medidos}`);
 
   const outputDir = path.resolve("src/data");
   await fs.mkdir(outputDir, { recursive: true });
 
-  // Estado: mas repos de los que se muestran, para no perder historial.
-  const state = processed.slice(0, STATE_SIZE).map(r => ({
-    id: r.id,
-    stars: r.stars,
-    history: r.history
-  }));
+  // Estado: mas repos de los que se muestran, y se conservan los que hoy no
+  // aparecieron para que no pierdan su historial.
+  const state = mergeState(oldState, processed, nowIso);
+  const arrastrados = state.length - Math.min(processed.length, state.length);
+  console.log(`Estado: ${state.length} repos (${arrastrados} arrastrados de corridas anteriores).`);
 
   await fs.writeFile(
     path.join(outputDir, "state.json"),
@@ -190,4 +192,7 @@ async function run() {
   console.log(`Finalizado: ${feed.length} repositorios publicados, ${state.length} en estado.`);
 }
 
-run();
+run().catch(err => {
+  console.error("Fallo la actualizacion:", err.message);
+  process.exit(1);
+});

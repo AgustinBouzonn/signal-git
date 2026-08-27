@@ -107,3 +107,76 @@ test("ciclo completo: primera corrida estima, la siguiente ya mide", () => {
   assert.equal(segunda.growth, 75);
   assert.equal(segunda.growthHours, 24);
 });
+
+// --- Preservacion de estado entre corridas ---
+
+import { pruneHistory, mergeState, STATE_SIZE } from "../growth.mjs";
+
+const nowIso = new Date(NOW).toISOString();
+
+test("pruneHistory descarta snapshots caducados y conserva los vivos", () => {
+  const out = pruneHistory([
+    { t: hoursAgo(48), s: 1 },
+    { t: hoursAgo(30), s: 2 },
+    { t: hoursAgo(2),  s: 3 }
+  ], nowIso);
+  assert.deepEqual(out.map(h => h.s), [2, 3]);
+});
+
+test("REGRESION: un repo ausente de esta corrida conserva su historial", () => {
+  const previous = new Map([
+    [1, { stars: 100, history: [{ t: hoursAgo(6), s: 100 }] }],
+    [2, { stars: 200, history: [{ t: hoursAgo(6), s: 200 }] }]
+  ]);
+  const seen = [{ id: 1, stars: 110, history: [{ t: hoursAgo(6), s: 100 }, { t: nowIso, s: 110 }] }];
+
+  const merged = mergeState(previous, seen, nowIso);
+  const ausente = merged.find(r => r.id === 2);
+
+  assert.ok(ausente, "el repo ausente debe seguir en el estado");
+  assert.equal(ausente.history.length, 1);
+  assert.equal(merged.length, 2);
+});
+
+test("el ausente que vuelve ya se mide, no se estima", () => {
+  const previous = new Map([[2, { stars: 200, history: [{ t: hoursAgo(24), s: 200 }] }]]);
+  const merged = mergeState(previous, [], nowIso);
+  const guardado = merged.find(r => r.id === 2);
+
+  const r = computeGrowth({ stars: 260, ageInDays: 90, history: guardado.history, nowMs: NOW });
+  assert.equal(r.isEstimated, false);
+  assert.equal(r.growth, 60);
+});
+
+test("un ausente con historial caducado se deja ir", () => {
+  const previous = new Map([[3, { stars: 50, history: [{ t: hoursAgo(48), s: 50 }] }]]);
+  assert.equal(mergeState(previous, [], nowIso).length, 0);
+});
+
+test("los vistos tienen prioridad sobre los ausentes al recortar", () => {
+  const seen = Array.from({ length: STATE_SIZE }, (_, i) => ({
+    id: i, stars: 1, history: [{ t: nowIso, s: 1 }]
+  }));
+  const previous = new Map([[999999, { stars: 5, history: [{ t: hoursAgo(6), s: 5 }] }]]);
+
+  const merged = mergeState(previous, seen, nowIso);
+  assert.equal(merged.length, STATE_SIZE);
+  assert.ok(!merged.some(r => r.id === 999999));
+});
+
+// --- Guardia contra sobreescribir el estado con un scrape fallido ---
+
+import { assertEnoughCandidates, MIN_CANDIDATES } from "../growth.mjs";
+
+test("un scrape vacio aborta en vez de pisar el estado", () => {
+  assert.throws(() => assertEnoughCandidates(0), /Se aborta sin escribir/);
+});
+
+test("un scrape truncado por rate limit tambien aborta", () => {
+  assert.throws(() => assertEnoughCandidates(MIN_CANDIDATES - 1), /minimo/);
+});
+
+test("un scrape sano sigue adelante", () => {
+  assert.doesNotThrow(() => assertEnoughCandidates(MIN_CANDIDATES));
+  assert.doesNotThrow(() => assertEnoughCandidates(1417));
+});

@@ -93,6 +93,28 @@ function setupEvents() {
   document.getElementById('search-input').addEventListener('input', (e) => { filters.query = e.target.value.toLowerCase(); render(); });
 }
 
+// Los campos vienen de repositorios publicos: cualquiera controla su descripcion,
+// nombre y topics. Se escapan antes de entrar al innerHTML de las tarjetas.
+function esc(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Solo se permiten enlaces http(s); cualquier otro esquema (javascript:, data:)
+// se descarta y la tarjeta queda sin enlace en vez de ejecutar codigo.
+function safeUrl(url) {
+  try {
+    const parsed = new URL(String(url), 'https://github.com');
+    return (parsed.protocol === 'https:' || parsed.protocol === 'http:') ? parsed.href : '#';
+  } catch {
+    return '#';
+  }
+}
+
 // El crecimiento se mide sobre la ventana disponible, que no siempre es de 24h.
 // Se etiqueta con la ventana real en vez de afirmar "hoy" siempre.
 function growthLabel(repo) {
@@ -152,18 +174,18 @@ function render() {
     <article class="bg-cardDark border border-borderDark rounded-xl p-5 flex flex-col justify-between hover:border-gray-500 transition shadow-sm">
       <div>
         <div class="flex items-start justify-between gap-2">
-          <a href="${repo.url}" target="_blank" rel="noopener noreferrer" class="text-blue-400 font-semibold text-base hover:underline break-all">
-            ${repo.fullName}
+          <a href="${safeUrl(repo.url)}" target="_blank" rel="noopener noreferrer" class="text-blue-400 font-semibold text-base hover:underline break-all">
+            ${esc(repo.fullName)}
           </a>
           ${repo.isGem ? `<span class="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0">💎 Gema</span>` : ''}
         </div>
         <p class="text-gray-300 text-xs mt-2 line-clamp-2 leading-relaxed">
-          ${repo.description}
+          ${esc(repo.description)}
         </p>
 
         ${repo.topics.length > 0 ? `
         <div class="mt-3 flex flex-wrap gap-1.5">
-          ${repo.topics.slice(0, 4).map(t => `<span class="text-[9px] text-gray-500 bg-bgDark px-1.5 py-0.5 rounded border border-borderDark">#${t}</span>`).join('')}
+          ${repo.topics.slice(0, 4).map(t => `<span class="text-[9px] text-gray-500 bg-bgDark px-1.5 py-0.5 rounded border border-borderDark">#${esc(t)}</span>`).join('')}
         </div>
         ` : ''}
       </div>
@@ -171,19 +193,19 @@ function render() {
       <div class="mt-4 pt-3 border-t border-borderDark flex flex-wrap items-center justify-between gap-2 text-xs text-gray-400">
         <div class="flex items-center gap-3">
           <span class="inline-flex items-center gap-1 font-medium text-gray-300">
-            ⭐ ${repo.stars.toLocaleString()}
+            ⭐ ${Number(repo.stars).toLocaleString()}
           </span>
-          <span class="${growthClass(repo)}" title="${growthTitle(repo)}">
-            +${repo.realDailyGrowth} ${growthLabel(repo)}
+          <span class="${growthClass(repo)}" title="${esc(growthTitle(repo))}">
+            +${Number(repo.realDailyGrowth)} ${growthLabel(repo)}
           </span>
         </div>
 
         <div class="flex items-center gap-2">
           <span class="bg-[#21262d] text-gray-300 px-2 py-0.5 rounded border border-borderDark text-[10px]">
-            ${repo.language}
+            ${esc(repo.language)}
           </span>
           <span class="text-[10px] text-gray-500">
-            ${repo.ageInDays}d
+            ${Number(repo.ageInDays)}d
           </span>
         </div>
       </div>

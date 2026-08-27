@@ -74,3 +74,43 @@ export function pushSnapshot(history, stars, nowIso) {
     .sort((x, y) => Date.parse(x.t) - Date.parse(y.t))
     .slice(-HISTORY_MAX);
 }
+
+// Poda el historial por antiguedad sin agregar snapshot. Se usa con los repos
+// que no aparecieron en esta corrida: conservan su historia hasta que caduca.
+export function pruneHistory(history, nowIso) {
+  const nowMs = Date.parse(nowIso);
+  return (Array.isArray(history) ? history : [])
+    .filter(h => h && Number.isFinite(Date.parse(h.t)) && (nowMs - Date.parse(h.t)) <= HISTORY_TTL_H * H)
+    .sort((x, y) => Date.parse(x.t) - Date.parse(y.t))
+    .slice(-HISTORY_MAX);
+}
+
+// Une los repos vistos en esta corrida con los del estado anterior que hoy no
+// aparecieron. Sin esto un repo que se cae del scrape pierde su historial y
+// vuelve a contarse como estimado la proxima vez que asome.
+export function mergeState(previousMap, seen, nowIso) {
+  const merged = seen.map(r => ({ id: r.id, stars: r.stars, history: r.history }));
+  const seenIds = new Set(merged.map(r => r.id));
+
+  for (const [id, prev] of previousMap) {
+    if (seenIds.has(id)) continue;
+    const history = pruneHistory(prev.history, nowIso);
+    if (history.length === 0) continue; // caduco: se deja ir
+    merged.push({ id, stars: prev.stars, history });
+  }
+
+  return merged.slice(0, STATE_SIZE);
+}
+
+// Por debajo de esto se asume que el scrape fallo. Escribir igual pisaria el
+// estado bueno con basura y quemaria el historial acumulado.
+export const MIN_CANDIDATES = 100;
+
+export function assertEnoughCandidates(count) {
+  if (count < MIN_CANDIDATES) {
+    throw new Error(
+      `Solo ${count} candidatos (minimo ${MIN_CANDIDATES}). ` +
+      `Se aborta sin escribir para no perder el estado anterior.`
+    );
+  }
+}
