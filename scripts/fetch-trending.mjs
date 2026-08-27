@@ -6,8 +6,8 @@ const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN || ""
 });
 
-// IMPORTANTE: CAMBIAR POR LA URL REAL DE GITHUB PAGES UNA VEZ CREADO EL REPO
-const LIVE_DATA_URL = "https://<TU-USUARIO>.github.io/<TU-REPO>/data/trending.json";
+// URL del JSON publicado en GitHub Pages (estado anterior para calcular el delta)
+const LIVE_DATA_URL = "https://agustinbouzonn.github.io/signal-git/data/trending.json";
 
 // Pausa para evitar abusar del Rate Limit de GitHub (30 requests/min en Search)
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
