@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "signalgit",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "src", "-l", "4321"],
+      "port": 4321
+    }
+  ]
+}

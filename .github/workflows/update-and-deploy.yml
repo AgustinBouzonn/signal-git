@@ -1,0 +1,54 @@
+name: Actualizar y Desplegar SignalGit
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Ejecuta a las 00:00, 06:00, 12:00 y 18:00 UTC
+  workflow_dispatch:      # Permite boton de ejecucion manual
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Extraer y clasificar repositorios
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run fetch
+
+      - name: Compilar Tailwind CSS Minificado
+        run: npm run build:css
+
+      - name: Configurar Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir artefacto estatico (Solo carpeta src)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'src'
+
+      - name: Desplegar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,16 @@
+{
+  "name": "signal-git",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "fetch": "node scripts/fetch-trending.mjs",
+    "build:css": "tailwindcss -i ./src/style.css -o ./src/output.css --minify",
+    "dev": "npm run build:css && npx serve src"
+  },
+  "dependencies": {
+    "@octokit/rest": "^20.0.2"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}
