@@ -13,7 +13,7 @@ let filters = {
 
 async function init() {
   try {
-    const res = await fetch('./data/trending.json');
+    const res = await fetch('./data/trending.json', { cache: 'no-cache' });
     if (!res.ok) throw new Error("No data");
     const data = await res.json();
     allRepos = data.repositories;

@@ -44,6 +44,9 @@ jobs:
       - name: Compilar Tailwind CSS Minificado
         run: npm run build:css
 
+      - name: Versionar assets para evitar cache mezclada
+        run: npm run stamp
+
       - name: Configurar Pages
         uses: actions/configure-pages@v5
 

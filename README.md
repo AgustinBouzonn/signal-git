@@ -47,6 +47,7 @@ El criterio elegido se recuerda en el navegador de cada visitante.
 ```
 scripts/growth.mjs          Lógica de crecimiento (pura, sin red ni disco)
 src/sort.js                 Criterios de orden del feed (compartido con los tests)
+scripts/stamp-assets.mjs    Versiona los assets con el hash de su contenido
 scripts/fetch-trending.mjs  Scraping, filtrado anti-spam y escritura de los JSON
 scripts/__tests__/          Tests de la lógica, corren en CI antes del scrape
 src/                        Frontend: HTML + Vanilla JS + Tailwind precompilado
@@ -72,4 +73,6 @@ Se descartan forks, archivados, repos de menos de 100 KB con más de 500 estrell
 
 - Si el scrape devuelve menos de 100 candidatos se asume que la API falló: el proceso aborta sin escribir, para no pisar el estado bueno. El workflow falla y el sitio anterior queda intacto.
 - Los campos que vienen de repositorios públicos (descripción, nombre, topics) los controla cualquiera, así que se escapan antes de renderizarse y solo se aceptan enlaces `http(s)`.
+- GitHub Pages sirve todo con `Cache-Control: max-age=600`, `index.html` incluido. Sin versionar los assets, un visitante puede quedarse diez minutos con el HTML nuevo y el `app.js` viejo en caché, y ver controles que ese JS no sabe manejar. Por eso el workflow corre `npm run stamp`, que les agrega `?v=<hash del contenido>` antes de publicar.
+- El feed se pide con `cache: 'no-cache'` para que los datos se revaliden en cada carga en vez de quedar hasta diez minutos atrasados.
 - El cron corre a las 00:00, 06:00, 12:00 y 18:00 UTC. También hay ejecución manual desde la pestaña Actions.
