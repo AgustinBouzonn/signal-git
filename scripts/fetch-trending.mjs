@@ -1,33 +1,61 @@
 import { Octokit } from "@octokit/rest";
 import fs from "fs/promises";
 import path from "path";
+import {
+  computeGrowth, compareRepos, pushSnapshot,
+  STATE_SIZE, FEED_SIZE
+} from "./growth.mjs";
 
 const octokit = new Octokit({
   auth: process.env.GITHUB_TOKEN || ""
 });
 
-// URL del JSON publicado en GitHub Pages (estado anterior para calcular el delta)
-const LIVE_DATA_URL = "https://agustinbouzonn.github.io/signal-git/data/trending.json";
+const BASE_URL = "https://agustinbouzonn.github.io/signal-git";
+// Estado liviano (id + estrellas + historial) que sobrevive entre corridas.
+const STATE_URL = `${BASE_URL}/data/state.json`;
+// Feed publicado en la corrida anterior; solo se usa como respaldo.
+const FEED_URL = `${BASE_URL}/data/trending.json`;
 
 // Pausa para evitar abusar del Rate Limit de GitHub (30 requests/min en Search)
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function fetchPreviousData() {
-  const oldMap = new Map();
-  try {
-    console.log("Descargando estado anterior para calcular crecimiento real...");
-    const res = await fetch(LIVE_DATA_URL);
-    if (!res.ok) throw new Error("HTTP " + res.status);
+// Recupera el historial de estrellas de la corrida anterior.
+// Se guarda aparte del feed porque el feed solo lleva el top y los repos que
+// salian de el perdian su historial, volviendo a caer en la estimacion.
+async function fetchPreviousState() {
+  const stateMap = new Map();
 
+  const load = async (url, label) => {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
-    data.repositories.forEach(repo => {
-      oldMap.set(repo.id, repo);
+    const list = data.repositories || [];
+    list.forEach(repo => {
+      if (repo && typeof repo.id === "number") {
+        // El feed antiguo no trae historial: se sintetiza un snapshot con su
+        // updatedAt para no desperdiciar la unica medicion disponible.
+        const history = repo.history
+          || (data.updatedAt ? [{ t: data.updatedAt, s: repo.stars }] : []);
+        stateMap.set(repo.id, { stars: repo.stars, history });
+      }
     });
-    console.log(`${oldMap.size} repositorios anteriores recuperados.`);
+    console.log(`${stateMap.size} repositorios recuperados desde ${label}.`);
+  };
+
+  console.log("Descargando estado anterior para calcular crecimiento real...");
+  try {
+    await load(STATE_URL, "state.json");
+    return stateMap;
   } catch (error) {
-    console.warn("No se pudo cargar el JSON anterior (Normal si es el primer despliegue o la URL no esta activa aun).");
+    console.warn(`No se pudo cargar state.json (${error.message}). Probando con el feed anterior...`);
   }
-  return oldMap;
+
+  try {
+    await load(FEED_URL, "trending.json");
+  } catch (error) {
+    console.warn("No hay estado previo disponible (normal en el primer despliegue).");
+  }
+  return stateMap;
 }
 
 function isSpamOrList(repo) {
@@ -89,29 +117,26 @@ async function fetchCandidates() {
 }
 
 async function run() {
-  const oldRepos = await fetchPreviousData();
+  const oldState = await fetchPreviousState();
   const rawRepos = await fetchCandidates();
+
+  const nowIso = new Date().toISOString();
+  const nowMs = Date.parse(nowIso);
 
   const processed = rawRepos
     .filter(repo => !isSpamOrList(repo))
     .map(repo => {
       const createdAt = new Date(repo.created_at);
-      const now = new Date();
-      const ageInDays = Math.max(1, Math.floor((now - createdAt) / (1000 * 60 * 60 * 24)));
-
+      const ageInDays = Math.max(1, Math.floor((nowMs - createdAt) / (1000 * 60 * 60 * 24)));
       const currentStars = repo.stargazers_count;
-      let realDailyGrowth = 0;
 
-      // Calcular delta contra el dia anterior
-      if (oldRepos.has(repo.id)) {
-        const pastStars = oldRepos.get(repo.id).stars;
-        realDailyGrowth = currentStars - pastStars;
-      } else {
-        // Estimacion si es nuevo en la base de datos
-        realDailyGrowth = Math.floor(currentStars / ageInDays);
-      }
-
-      realDailyGrowth = Math.max(0, realDailyGrowth);
+      const prev = oldState.get(repo.id);
+      const { growth, growthHours, growthRate, isEstimated } = computeGrowth({
+        stars: currentStars,
+        ageInDays,
+        history: prev?.history,
+        nowMs
+      });
 
       return {
         id: repo.id,
@@ -121,32 +146,48 @@ async function run() {
         description: repo.description || "Sin descripcion.",
         language: repo.language || "Multi/Other",
         stars: currentStars,
-        realDailyGrowth: realDailyGrowth,
+        realDailyGrowth: growth,
+        growthHours,        // horas reales de la ventana medida (null si es estimado)
+        growthRate,         // tasa diaria normalizada, usada para ordenar
+        isEstimated,
         forks: repo.forks_count,
         ageInDays,
         topics: repo.topics || [],
-        isGem: currentStars < 1000 && realDailyGrowth > 20
+        isGem: currentStars < 1000 && growthRate > 20,
+        history: pushSnapshot(prev?.history, currentStars, nowIso)
       };
     })
-    .sort((a, b) => b.realDailyGrowth - a.realDailyGrowth)
-    .slice(0, 300); // Guardamos el Top 300
+    .sort(compareRepos);
+
+  const medidos = processed.filter(r => !r.isEstimated).length;
+  console.log(`Candidatos: ${processed.length} | medidos: ${medidos} | estimados: ${processed.length - medidos}`);
 
   const outputDir = path.resolve("src/data");
   await fs.mkdir(outputDir, { recursive: true });
 
-  const payload = {
-    updatedAt: new Date().toISOString(),
-    total: processed.length,
-    repositories: processed
-  };
+  // Estado: mas repos de los que se muestran, para no perder historial.
+  const state = processed.slice(0, STATE_SIZE).map(r => ({
+    id: r.id,
+    stars: r.stars,
+    history: r.history
+  }));
 
   await fs.writeFile(
-    path.join(outputDir, "trending.json"),
-    JSON.stringify(payload, null, 2),
+    path.join(outputDir, "state.json"),
+    JSON.stringify({ updatedAt: nowIso, total: state.length, repositories: state }),
     "utf-8"
   );
 
-  console.log(`Finalizado: ${processed.length} repositorios procesados y guardados.`);
+  // Feed: solo lo que consume el frontend, sin el historial.
+  const feed = processed.slice(0, FEED_SIZE).map(({ history, ...rest }) => rest);
+
+  await fs.writeFile(
+    path.join(outputDir, "trending.json"),
+    JSON.stringify({ updatedAt: nowIso, total: feed.length, repositories: feed }, null, 2),
+    "utf-8"
+  );
+
+  console.log(`Finalizado: ${feed.length} repositorios publicados, ${state.length} en estado.`);
 }
 
 run();

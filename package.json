@@ -5,7 +5,8 @@
   "scripts": {
     "fetch": "node scripts/fetch-trending.mjs",
     "build:css": "tailwindcss -i ./src/style.css -o ./src/output.css --minify",
-    "dev": "npm run build:css && npx serve src"
+    "dev": "npm run build:css && npx serve src",
+    "test": "node --test scripts/__tests__/growth.test.mjs"
   },
   "dependencies": {
     "@octokit/rest": "^20.0.2"

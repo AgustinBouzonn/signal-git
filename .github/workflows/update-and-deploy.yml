@@ -33,6 +33,9 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Correr tests de la logica de crecimiento
+        run: npm test
+
       - name: Extraer y clasificar repositorios
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

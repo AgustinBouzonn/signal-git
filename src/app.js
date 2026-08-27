@@ -93,6 +93,31 @@ function setupEvents() {
   document.getElementById('search-input').addEventListener('input', (e) => { filters.query = e.target.value.toLowerCase(); render(); });
 }
 
+// El crecimiento se mide sobre la ventana disponible, que no siempre es de 24h.
+// Se etiqueta con la ventana real en vez de afirmar "hoy" siempre.
+function growthLabel(repo) {
+  if (repo.isEstimated) return 'estimado';
+  const h = repo.growthHours;
+  if (h === null || h === undefined) return '';
+  if (h >= 20 && h <= 28) return 'hoy';
+  return `en ${h < 1 ? h.toFixed(1) : Math.round(h)}h`;
+}
+
+function growthTitle(repo) {
+  if (repo.isEstimated) {
+    return 'Sin medicion previa: estimado sobre la vida del repositorio. Se mide en la proxima actualizacion.';
+  }
+  const h = repo.growthHours;
+  return `Estrellas ganadas en las ultimas ${h < 1 ? h.toFixed(1) : Math.round(h)}h`;
+}
+
+function growthClass(repo) {
+  const base = 'font-mono text-[11px] px-1.5 py-0.5 rounded border';
+  return repo.isEstimated
+    ? `${base} text-amber-400 bg-amber-950/40 border-amber-900/50`
+    : `${base} text-emerald-400 bg-emerald-950/40 border-emerald-900/50`;
+}
+
 function render() {
   const container = document.getElementById('repo-grid');
 
@@ -148,8 +173,8 @@ function render() {
           <span class="inline-flex items-center gap-1 font-medium text-gray-300">
             ⭐ ${repo.stars.toLocaleString()}
           </span>
-          <span class="text-emerald-400 font-mono text-[11px] bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-900/50" title="Ganadas en las ultimas 24h">
-            +${repo.realDailyGrowth} hoy
+          <span class="${growthClass(repo)}" title="${growthTitle(repo)}">
+            +${repo.realDailyGrowth} ${growthLabel(repo)}
           </span>
         </div>
 
