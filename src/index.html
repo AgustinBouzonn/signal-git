@@ -34,6 +34,9 @@
         </div>
 
         <div class="flex flex-wrap gap-2 w-full md:w-auto">
+          <select id="sort-select" aria-label="Ordenar por" class="bg-[#161b22] border border-borderDark text-xs rounded-lg px-3 py-2 text-gray-300 focus:outline-none focus:border-blue-500">
+            <!-- Opciones inyectadas via JS desde sort.js -->
+          </select>
           <select id="age-select" class="bg-[#161b22] border border-borderDark text-xs rounded-lg px-3 py-2 text-gray-300 focus:outline-none focus:border-blue-500">
             <option value="all">Cualquier edad</option>
             <option value="new">Nuevos (&lt; 7 días)</option>
@@ -53,12 +56,16 @@
       </div>
     </div>
 
+    <!-- Alcance del conjunto y criterio activo -->
+    <p id="scope-note" class="mt-4 text-[11px] text-gray-500 leading-relaxed"></p>
+
     <!-- Feed de Proyectos -->
     <main id="repo-grid" class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
       <!-- Inyección dinámica -->
     </main>
   </div>
 
+  <script src="sort.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

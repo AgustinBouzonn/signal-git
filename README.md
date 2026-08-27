@@ -20,10 +20,33 @@ Tres decisiones sostienen que ese número sea honesto:
 
 Un repo aparece como `estimado` en su primera aparición y pasa a medido en la corrida siguiente.
 
+## Formas de ordenar
+
+El selector reordena el feed sin volver a pedir datos. Seis criterios:
+
+| Criterio | Qué destaca |
+|---|---|
+| **Crecimiento** (por defecto) | Estrellas ganadas por día. |
+| **Momentum** | Crecimiento en proporción al tamaño: el repo de 800 estrellas que suma 120 por encima del de 200.000 que suma 300. |
+| **Estrellas** | Total acumulado, el criterio clásico. |
+| **Más nuevos** | Menor antigüedad. |
+| **Actividad reciente** | Último push al repositorio. |
+| **Más forkeados** | Forks totales, señal de uso real y no solo de marcador. |
+
+Dos detalles que hacen que los números no engañen:
+
+- **El conjunto no cambia, solo su orden.** El feed son los 300 repos con más señal de crecimiento, no el ranking global de GitHub. Ordenar por estrellas reordena ese conjunto; no trae los repos más estrellados del mundo. La nota bajo los filtros lo dice en la propia interfaz.
+- **En los criterios de crecimiento, los estimados van al final** por la misma razón que en el ranking del backend. En los que ordenan por un dato duro (estrellas, edad, forks) la distinción no aplica y no se usa.
+
+Momentum aplica un piso de 50 estrellas al divisor: sin él, un repo de 3 estrellas que gana 3 dominaría el listado por un movimiento sin significado.
+
+El criterio elegido se recuerda en el navegador de cada visitante.
+
 ## Estructura
 
 ```
 scripts/growth.mjs          Lógica de crecimiento (pura, sin red ni disco)
+src/sort.js                 Criterios de orden del feed (compartido con los tests)
 scripts/fetch-trending.mjs  Scraping, filtrado anti-spam y escritura de los JSON
 scripts/__tests__/          Tests de la lógica, corren en CI antes del scrape
 src/                        Frontend: HTML + Vanilla JS + Tailwind precompilado

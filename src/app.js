@@ -1,4 +1,8 @@
+const SORT_STORAGE_KEY = 'signalgit:sort';
+
 let allRepos = [];
+// Se resuelve en init(), una vez que sort.js ya publico SignalSort.
+let sortMode = 'growth';
 let filters = {
   mode: 'all', // all o gems
   lang: 'all',
@@ -16,6 +20,8 @@ async function init() {
 
     document.getElementById('last-update').textContent = `Actualizado: ${new Date(data.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
+    sortMode = loadSortPreference();
+    populateSorts();
     populateLanguages();
     populateTopics();
     setupEvents();
@@ -91,6 +97,60 @@ function setupEvents() {
   document.getElementById('lang-select').addEventListener('change', (e) => { filters.lang = e.target.value; render(); });
   document.getElementById('age-select').addEventListener('change', (e) => { filters.age = e.target.value; render(); });
   document.getElementById('search-input').addEventListener('input', (e) => { filters.query = e.target.value.toLowerCase(); render(); });
+  document.getElementById('sort-select').addEventListener('change', (e) => {
+    sortMode = e.target.value;
+    e.target.title = SignalSort.SORTS[sortMode].hint;
+    saveSortPreference(sortMode);
+    render();
+  });
+}
+
+// La preferencia es una comodidad por visitante; si el navegador bloquea el
+// almacenamiento se sigue con el orden por defecto.
+function loadSortPreference() {
+  try {
+    const saved = localStorage.getItem(SORT_STORAGE_KEY);
+    if (saved && SignalSort.SORTS[saved]) return saved;
+  } catch (err) {
+    // Navegador con almacenamiento bloqueado: se sigue con el orden por defecto.
+    console.warn('No se pudo leer la preferencia de orden:', err.message);
+  }
+  return SignalSort.DEFAULT_SORT;
+}
+
+function saveSortPreference(mode) {
+  try {
+    localStorage.setItem(SORT_STORAGE_KEY, mode);
+  } catch (err) {
+    console.warn('No se pudo guardar la preferencia de orden:', err.message);
+  }
+}
+
+function populateSorts() {
+  const select = document.getElementById('sort-select');
+  Object.entries(SignalSort.SORTS).forEach(([value, sort]) => {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = sort.label;
+    opt.title = sort.hint;
+    select.appendChild(opt);
+  });
+  select.value = sortMode;
+  select.title = SignalSort.SORTS[sortMode].hint;
+}
+
+// El feed son los 300 repos con mas senal de crecimiento, no el ranking global
+// de GitHub. Ordenar por estrellas reordena ese conjunto, no lo amplia: se dice
+// explicitamente para que el numero no se lea como algo que no es.
+function updateScopeNote(mostrados) {
+  const note = document.getElementById('scope-note');
+  if (!note) return;
+  const sort = SignalSort.SORTS[sortMode] || SignalSort.SORTS[SignalSort.DEFAULT_SORT];
+  const universo = allRepos.length;
+  const alcance = mostrados === universo
+    ? `${universo} repositorios`
+    : `${mostrados} de ${universo} repositorios`;
+  note.textContent = `Mostrando ${alcance} del radar (los de mayor crecimiento detectado), ordenados por ${sort.label.toLowerCase()}. ${sort.hint}`;
 }
 
 // Los campos vienen de repositorios publicos: cualquiera controla su descripcion,
@@ -164,6 +224,9 @@ function render() {
 
     return true;
   });
+
+  filtered = SignalSort.sortRepos(filtered, sortMode);
+  updateScopeNote(filtered.length);
 
   if (filtered.length === 0) {
     container.innerHTML = '<div class="col-span-2 text-center py-16 text-gray-500 text-sm">No hay repositorios que coincidan con esta busqueda.</div>';

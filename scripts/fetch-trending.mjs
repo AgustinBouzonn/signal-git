@@ -151,6 +151,7 @@ async function run() {
         growthRate,         // tasa diaria normalizada, usada para ordenar
         isEstimated,
         forks: repo.forks_count,
+        pushedAt: repo.pushed_at,
         ageInDays,
         topics: repo.topics || [],
         isGem: currentStars < 1000 && growthRate > 20,
