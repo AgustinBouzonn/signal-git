@@ -9,6 +9,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=flat-square&logo=nodedotjs&logoColor=white)](package.json)
 [![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=black)](src/app.js)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?style=flat-square&logo=tailwindcss&logoColor=white)](tailwind.config.js)
+[![Licencia](https://img.shields.io/badge/licencia-MIT-blue?style=flat-square)](LICENSE)
 
 **[Abrir SignalGit →](https://agustinbouzonn.github.io/signal-git/)**
 
@@ -108,3 +109,7 @@ src/data/                   Generado por el workflow, no versionado
 - GitHub Pages sirve todo con `Cache-Control: max-age=600`, `index.html` incluido. Sin versionar los assets, un visitante puede quedarse diez minutos con el HTML nuevo y el `app.js` viejo en caché, y ver controles que ese JS no sabe manejar. Por eso el workflow corre `npm run stamp`, que les agrega `?v=<hash del contenido>` antes de publicar.
 - El feed se pide con `cache: 'no-cache'` para que los datos se revaliden en cada carga en vez de quedar hasta diez minutos atrasados.
 - El cron corre a las 00:00, 06:00, 12:00 y 18:00 UTC. También hay ejecución manual desde la pestaña Actions.
+
+## Licencia
+
+Distribuido bajo la licencia MIT. Ver [LICENSE](LICENSE).

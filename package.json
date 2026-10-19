@@ -1,6 +1,7 @@
 {
   "name": "signal-git",
   "version": "1.0.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "fetch": "node scripts/fetch-trending.mjs",
