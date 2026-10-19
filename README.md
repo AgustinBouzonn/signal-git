@@ -1,10 +1,28 @@
-# SignalGit
+<div align="center">
 
-Radar de repositorios de GitHub que están creciendo de verdad, antes de que se vuelvan mainstream.
+# 📡 SignalGit
 
-**→ [agustinbouzonn.github.io/signal-git](https://agustinbouzonn.github.io/signal-git/)**
+**Radar de repositorios de GitHub que están creciendo de verdad, antes de que se vuelvan mainstream.**
 
-Coste cero: sin base de datos, sin servidor y sin mantenimiento. GitHub Actions hace el scraping cada 6 horas y publica un sitio estático en GitHub Pages.
+[![Deploy](https://img.shields.io/github/actions/workflow/status/AgustinBouzonn/signal-git/update-and-deploy.yml?style=flat-square&label=deploy&logo=githubactions&logoColor=white)](https://github.com/AgustinBouzonn/signal-git/actions/workflows/update-and-deploy.yml)
+[![Demo](https://img.shields.io/badge/demo-en_vivo-7aa2f7?style=flat-square&logo=githubpages&logoColor=white)](https://agustinbouzonn.github.io/signal-git/)
+[![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=flat-square&logo=nodedotjs&logoColor=white)](package.json)
+[![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=black)](src/app.js)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?style=flat-square&logo=tailwindcss&logoColor=white)](tailwind.config.js)
+
+**[Abrir SignalGit →](https://agustinbouzonn.github.io/signal-git/)**
+
+</div>
+
+SignalGit tiene costo cero: sin base de datos, sin servidor y sin mantenimiento. GitHub Actions hace el scraping cada 6 horas y publica un sitio estático en GitHub Pages.
+
+## Características
+
+- 📈 **Estrellas ganadas, no totales:** mide el crecimiento de las últimas 24 horas.
+- 🔀 **Seis criterios de orden** que se aplican en el navegador, sin volver a pedir datos.
+- 💎 **Modo gemas:** filtra repos de menos de 1.000 estrellas que ganan más de 20 por día.
+- 🧹 **Filtros anti-ruido** que descartan listas, cursos, forks y repos archivados.
+- 🛡️ **Estado protegido:** si el scrape falla, el sitio anterior queda intacto.
 
 ## Cómo mide el crecimiento
 
@@ -20,7 +38,9 @@ Tres decisiones sostienen que ese número sea honesto:
 
 Un repo aparece como `estimado` en su primera aparición y pasa a medido en la corrida siguiente.
 
-## Formas de ordenar
+## Ranking y filtros
+
+### Formas de ordenar
 
 El selector reordena el feed sin volver a pedir datos. Seis criterios:
 
@@ -42,19 +62,13 @@ Momentum aplica un piso de 50 estrellas al divisor: sin él, un repo de 3 estrel
 
 El criterio elegido se recuerda en el navegador de cada visitante.
 
-## Estructura
+### Filtros anti-ruido
 
-```
-scripts/growth.mjs          Lógica de crecimiento (pura, sin red ni disco)
-src/sort.js                 Criterios de orden del feed (compartido con los tests)
-scripts/stamp-assets.mjs    Versiona los assets con el hash de su contenido
-scripts/fetch-trending.mjs  Scraping, filtrado anti-spam y escritura de los JSON
-scripts/__tests__/          Tests de la lógica, corren en CI antes del scrape
-src/                        Frontend: HTML + Vanilla JS + Tailwind precompilado
-src/data/                   Generado por el workflow, no versionado
-```
+Se descartan forks, archivados, repos de menos de 100 KB con más de 500 estrellas (suelen ser listas), los que tienen Markdown o Jupyter Notebook como lenguaje principal, y los que llevan `awesome-`, `interview`, `roadmap`, `books`, `course` o `tutorial` en el nombre.
 
-## Desarrollo local
+## Inicio rápido
+
+Requiere Node.js 20, la misma versión que usa el workflow.
 
 ```bash
 npm install
@@ -65,9 +79,27 @@ npm run dev
 
 El token no es obligatorio, pero sin él la Search API corta por rate limit a mitad del scrape.
 
-## Filtros anti-ruido
+| Script | Qué hace |
+|---|---|
+| `npm run fetch` | Scrapea GitHub y escribe `src/data/state.json` y `src/data/trending.json` |
+| `npm test` | Corre los tests de crecimiento, orden y versionado de assets |
+| `npm run build:css` | Compila Tailwind minificado en `src/output.css` |
+| `npm run stamp` | Agrega `?v=<hash>` a los assets de `src/index.html` |
+| `npm run dev` | Compila CSS, versiona assets y sirve `src/` en local |
 
-Se descartan forks, archivados, repos de menos de 100 KB con más de 500 estrellas (suelen ser listas), los que tienen Markdown o Jupyter Notebook como lenguaje principal, y los que llevan `awesome-`, `interview`, `roadmap`, `books`, `course` o `tutorial` en el nombre.
+`npm run dev` reescribe los hashes de `src/index.html`. Si cambian solo por tu build local, no hace falta commitearlos: el workflow los regenera al publicar.
+
+## Estructura del proyecto
+
+```
+scripts/growth.mjs          Lógica de crecimiento (pura, sin red ni disco)
+src/sort.js                 Criterios de orden del feed (compartido con los tests)
+scripts/stamp-assets.mjs    Versiona los assets con el hash de su contenido
+scripts/fetch-trending.mjs  Scraping, filtrado anti-spam y escritura de los JSON
+scripts/__tests__/          Tests de la lógica, corren en CI antes del scrape
+src/                        Frontend: HTML + Vanilla JS + Tailwind precompilado
+src/data/                   Generado por el workflow, no versionado
+```
 
 ## Notas de operación
 
